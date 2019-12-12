@@ -40,4 +40,53 @@ CHIP CPU {
 
     PARTS:
     // Put your code here:
+    //把指令命名
+    Or16(a=false, b=instruction, out[15]=isC, out[12]=a, 
+        out[11]=c1, out[10]=c2, out[9]=c3, out[8]=c4,
+        out[7]=c5,out[6]=c6, out[5]=d1, out[4]=d2, 
+        out[3]=d3, out[2]=j1, out[1]=j2, out[0]=j3);
+
+    //看指令是C指令還是A指令
+    Not(in=isC, out=isA);
+
+    //選擇甚麼資料要丟進A暫存器
+    Mux16(a=instruction, b=aluOut, sel=isC, out=aRe);
+
+    //要不要寫入A暫存器
+    And(a=isC, b=d1, out=isCAndd1);
+    Or(a=isCAndd1, b=isA, out=reAC);        
+    //A暫存器
+    ARegister(in=aRe, load=reAC, out=aReOut, out[0..14]=addressM);
+
+    //A暫存器或是從記憶體提取資料丟進ALU
+    Mux16(a=aReOut, b=inM, sel=a, out=inY); 
+
+
+    //PC
+    //1.因為zr是"=",ng是"<",需要用ng,zr做出大於(PO=ng'&zr',ng'代表大於,zr'代表">"或"<")
+    Not(in=aluNg,out=notng);
+    Not(in=aluZr,out=notzr);
+    And(a=notng,b=notzr,out=PO);
+
+    //2.有j1=ng或j2=zr或j3=PO任一情況就可以跳了
+    And(a=j1,b=aluNg,out=out1);
+    And(a=j2,b=aluZr,out=out2);
+    And(a=j3,b=PO,out=out3);
+    Or(a=out1,b=out2,out=out4);
+    Or(a=out3,b=out4,out=PcLoad);
+
+    
+    And(a=isC, b=PcLoad, out=PcLoad1);
+    PC(in=aReOut, load=PcLoad1, inc=true, reset=reset, out[0..14]=pc);
+
+    //ALU
+    ALU(x=inX, y=inY, zx=c1, nx=c2, zy=c3, ny=c4, f=c5, 
+    no=c6, out=outM, out=aluOut, zr=aluZr, ng=aluNg);
+
+    //D暫存器
+    And(a=isC, b=d2, out=isCAndd2);
+    DRegister(in=aluOut, load=isCAndd2, out=inX);
+
+    //writeM
+    And(a=d3, b=isC, out=writeM);
 }
